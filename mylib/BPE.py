@@ -1,7 +1,7 @@
 from mylib.Tokenizer import byte_tokenize, bpe_tokenize
 
 class BytePairEncoder:
-    def __init__(self, vocabulary=None, iterations=100, space=True):
+    def __init__(self, vocabulary=None, iterations=1000, space=True):
         if vocabulary is not None and not isinstance(vocabulary, set):
             raise TypeError("vocabulary must be None or set")
         if not isinstance(space, bool):

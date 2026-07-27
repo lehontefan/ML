@@ -10,7 +10,7 @@ def byte_tokenize(text, space=True):
     words = word_tokenize(text, space)
     tokens = []
     for word in words:
-        tokenized = [format(b, 'X') for b in word.encode('utf-8')]
+        tokenized = [format(b, '02X') for b in word.encode('utf-8')]
         tokens.append(tokenized)
     return tokens
 

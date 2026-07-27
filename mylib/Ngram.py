@@ -27,6 +27,7 @@ class Ngram:
             sequence = [token for word in sequence for token in word]
             self.merges = bpe.merges
             self.vocabulary = list(bpe.vocabulary)
+        self.counts[()] = len(sequence)
         for order in range(1, self.n + 1):
             for index in range(len(sequence) - order + 1):
                 gram = tuple(sequence[index:index + order])
@@ -43,7 +44,10 @@ class Ngram:
         for token in self.vocabulary:
             probability = 0
             for order in range(1, self.n + 1):
-                history = tuple(new_sequence[-order:])
+                if order == 1:
+                    history = ()
+                else:
+                    history = tuple(new_sequence[-(order - 1):])
                 ngram = history + (token,)
                 num = self.counts.get(ngram, 0) + self.smoothing
                 denom = self.counts.get(history, 0) + self.smoothing * len(self.vocabulary)
