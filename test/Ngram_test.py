@@ -7,25 +7,19 @@ from mylib.BPE import BytePairEncoder
 from mylib.Ngram import Ngram
 from mylib.Tokenizer import bpe_tokenize, byte_tokenize
 
-"""
 nltk.download('brown')
 corpus = ' '.join(brown.words())
 
-bpe = BytePairEncoder()
+"""bpe = BytePairEncoder()
 bpe.fit(corpus)
 
-ngram = Ngram(5, smoothing=0.5)
-ngram.fit(corpus, bpe)
-
-with open('bpe.pkl', 'wb') as f:
-    pickle.dump(bpe, f)
+ngram = Ngram(5, smoothing=0.5, level='word')
+ngram.fit(corpus)
 
 with open('ngram.pkl', 'wb') as f:
     pickle.dump(ngram, f)
-    """
+"""
 
-with open('bpe.pkl', 'rb') as f:
-    bpe = pickle.load(f)
 with open('ngram.pkl', 'rb') as f:
     ngram = pickle.load(f)
 
@@ -65,9 +59,11 @@ def sample_next_token(ngram, sequence, temperature=1.0):
 def sample_text(ngram, start_text, num_tokens=50, temperature=1.0):
     text = start_text
     for _ in range(num_tokens):
-        token_hex = sample_next_token(ngram, text, temperature)
-        text += bytes.fromhex(token_hex).decode('utf-8', errors='ignore')
+        token = sample_next_token(ngram, text, temperature)
+        text += token
     return text
 
-result = sample_text(ngram, 'The Fulton County Grand', num_tokens=500, temperature=1.0)
-print(result)
+text = 'The Fulton County Grand'
+for i in range(50):
+    text += ngram.predict(text)
+    print(text)
