@@ -3,23 +3,27 @@ import numpy as np
 def ReLU(x):
     return np.maximum(0, x)
 
-def softmax(x):
-    x = x - np.max(x)
-    x = np.exp(x)
-    return x / np.sum(x)
+def softmax(x, axis=-1):
+    x = x - np.max(x, axis=axis, keepdims=True)
+    exp_x = np.exp(x)
+    return exp_x / np.sum(exp_x, axis=axis, keepdims=True)
 
 class FFNClassifier:
-    def __init__(self, n_input, n_output, n_layers, n_neurons, learning_rate=0.01, iterations=1000):
+    def __init__(self, n_input, n_output, n_layers, n_neurons, learning_rate=0.01, iterations=1000, bias=False):
         self.n_layers = n_layers
         self.n_neurons = n_neurons
         self.n_output = n_output
-        self.n_input = n_input
+        self.n_input = n_input + 1 if bias else n_input
         self.input_weights = np.random.uniform(-0.1, 0.1, (self.n_neurons, self.n_input))
+        self.input_bias = np.zeros(n_neurons) if bias else None
         self.output_weights = np.random.uniform(-0.1, 0.1, (self.n_output, self.n_neurons))
+        self.output_bias = np.zeros(n_output) if bias else None
         if self.n_layers > 1:
             self.hidden_weights = np.random.uniform(-0.1, 0.1, (self.n_neurons * (self.n_layers - 1), self.n_neurons))
+            self.hidden_bias = np.zeros((self.n_neurons, self.n_layers - 1)) if bias else None
         self.learning_rate = learning_rate
         self.iterations = iterations
+        self.bias = bias
 
     def _forward(self, X):
         X = np.array(X)
@@ -28,21 +32,28 @@ class FFNClassifier:
         z_list = []
         a_list = [X]
         output = np.dot(X, self.input_weights.T)
+        if self.bias:
+            output += self.input_bias
         z_list.append(output)
         output = ReLU(output)
         a_list.append(output)
         if self.n_layers > 1:
             for i in range(self.n_layers - 1):
                 output = np.dot(output, self.hidden_weights.T[:, i * self.n_neurons:i * self.n_neurons + self.n_neurons])
+                if self.bias:
+                    output += self.hidden_bias[:, i]
                 z_list.append(output)
                 output = ReLU(output)
                 a_list.append(output)
         output = np.dot(output, self.output_weights.T)
-        for i in range(X.shape[0]):
-            output[i] = softmax(output[i])
+        if self.bias:
+            output += self.output_bias
+        output = softmax(output)
         return output, z_list, a_list
 
     def fit(self, X, y):
+        if self.bias:
+            X = np.c_[np.ones((X.shape[0], 1)), X]
         iteration = 0
         X = np.array(X)
         y = np.array(y)
@@ -54,6 +65,9 @@ class FFNClassifier:
             delta = y_pred - y_onehot
             a_last = a_list[-1]
             d_output_weights = np.dot(delta.T, a_last) / X.shape[0]
+            if self.bias:
+                d_output_bias = np.sum(delta, axis=0) / X.shape[0]
+                self.output_bias -= self.learning_rate * d_output_bias
             delta = np.dot(delta, self.output_weights) * (z_list[-1] > 0)
             d_hidden_weights = None
             if self.n_layers > 1:
@@ -62,8 +76,14 @@ class FFNClassifier:
                     a_in = a_list[i]
                     W_i = self.hidden_weights[i * self.n_neurons:(i + 1) * self.n_neurons, :]
                     d_hidden_weights[i * self.n_neurons:(i + 1) * self.n_neurons, :] = np.dot(delta.T, a_in) / X.shape[0]
+                    if self.bias:
+                        d_hidden_bias = np.sum(delta, axis=0) / X.shape[0]
+                        self.hidden_bias[:, i] -= self.learning_rate * d_hidden_bias
                     delta = np.dot(delta, W_i) * (z_list[i] > 0)
             d_input_weights = np.dot(delta.T, X) / X.shape[0]
+            if self.bias:
+                d_input_bias = np.sum(delta, axis=0) / X.shape[0]
+                self.input_bias -= self.learning_rate * d_input_bias
             self.output_weights -= self.learning_rate * d_output_weights
             self.input_weights -= self.learning_rate * d_input_weights
             if d_hidden_weights is not None:
@@ -71,5 +91,7 @@ class FFNClassifier:
             iteration += 1
 
     def predict(self, X):
+        if self.bias:
+            X = np.c_[np.ones((X.shape[0], 1)), X]
         output, _, _ = self._forward(X)
         return output
